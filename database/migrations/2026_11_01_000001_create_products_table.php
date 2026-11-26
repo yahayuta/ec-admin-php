@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->string('sku', 32)->unique();
+            $table->string('name');
+            // Unsigned: even if application code had a bug, MySQL would refuse negative stock.
+            $table->unsignedInteger('stock')->default(0);
+            $table->unsignedInteger('reorder_point')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('products');
+    }
+};

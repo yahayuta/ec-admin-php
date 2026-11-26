@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ec_admin_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ec_admin_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Lint PHP files
+        run: find app bootstrap database routes tests public -name '*.php' -print0 2>/dev/null | xargs -0 -n1 php -l > /dev/null
+
+      - name: Migrate and seed MySQL
+        run: |
+          printf 'APP_KEY=\n' > .env
+          php artisan key:generate --force
+          php artisan migrate --seed --force
+          php artisan migrate:rollback --force
+
+      - name: Run tests on MySQL
+        run: vendor/bin/phpunit
